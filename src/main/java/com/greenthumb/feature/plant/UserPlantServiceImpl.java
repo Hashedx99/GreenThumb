@@ -91,3 +91,90 @@ public class UserPlantServiceImpl implements UserPlantService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public UserPlantDto.PlantResponse updatePlant(String userEmail, Long plantId,
+                                                   UserPlantDto.UpdatePlantRequest request) {
+        UserPlant plant = findOwnedPlant(userEmail, plantId);
+
+        plant.setNickname(request.getNickname());
+        plant.setLocation(request.getLocation());
+        plant.setNotes(request.getNotes());
+        if (request.getStatus() != null) {
+            plant.setStatus(request.getStatus());
+        }
+
+        UserPlant saved = plantRepository.save(plant);
+        log.info("Plant updated: id={}", plantId);
+        return UserPlantDto.PlantResponse.from(saved);
+    }
+
+    /**
+     * {@inheritDoc}
+     * Uploads to Cloudinary under "greenthumb/plants" folder.
+     */
+    @Override
+    @Transactional
+    public UserPlantDto.PlantResponse uploadPlantPhoto(String userEmail, Long plantId,
+                                                        MultipartFile file) {
+        UserPlant plant = findOwnedPlant(userEmail, plantId);
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    Map.of("folder", "greenthumb/plants")
+            );
+            plant.setPhotoUrl((String) result.get("secure_url"));
+            UserPlant saved = plantRepository.save(plant);
+            log.info("Plant photo uploaded: id={}", plantId);
+            return UserPlantDto.PlantResponse.from(saved);
+        } catch (IOException e) {
+            log.error("Failed to upload plant photo: id={}", plantId, e);
+            throw new BusinessException("Failed to upload plant photo. Please try again.");
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public void removePlant(String userEmail, Long plantId) {
+        UserPlant plant = findOwnedPlant(userEmail, plantId);
+        plantRepository.delete(plant);
+        log.info("Plant removed from collection: id={}", plantId);
+    }
+
+    /**
+     * {@inheritDoc}
+     * Queries care schedules with nextDueDate on or before today.
+     */
+    @Override
+    public List<UserPlantDto.PlantResponse> getPlantsDueToday(String userEmail) {
+        User user = findUserByEmail(userEmail);
+        return plantRepository.findPlantsDueForCare(user.getId(), LocalDate.now())
+                .stream()
+                .map(UserPlantDto.PlantResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Finds a plant by ID and validates it belongs to the requesting user.
+     *
+     * @param userEmail the authenticated user's email
+     * @param plantId   the plant ID
+     * @return the plant if it belongs to the user
+     * @throws ResourceNotFoundException if not found
+     * @throws BusinessException         if the plant belongs to another user
+     */
+    private UserPlant findOwnedPlant(String userEmail, Long plantId) {
+        User user = findUserByEmail(userEmail);
+        return plantRepository.findByIdAndUserId(plantId, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Plant not found with id: " + plantId));
+    }
+}
