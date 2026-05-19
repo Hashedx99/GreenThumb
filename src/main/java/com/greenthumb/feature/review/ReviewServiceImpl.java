@@ -53,3 +53,70 @@ public class ReviewServiceImpl implements ReviewService {
                 .build();
 
         PlantReview saved = reviewRepository.save(review);
+        log.info("Review created: id={} by user: {}", saved.getId(), userEmail);
+        return ReviewDto.ReviewResponse.from(saved);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public ReviewDto.ReviewResponse updateReview(String userEmail, Long reviewId,
+                                                  ReviewDto.ReviewRequest request) {
+        User user = findUserByEmail(userEmail);
+        PlantReview review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review", reviewId));
+
+        // Only the original reviewer can update their review
+        if (!review.getUser().getId().equals(user.getId())) {
+            throw new BusinessException("You can only edit your own reviews.");
+        }
+
+        review.setRating(request.getRating());
+        review.setBody(request.getBody());
+
+        PlantReview saved = reviewRepository.save(review);
+        log.info("Review updated: id={}", reviewId);
+        return ReviewDto.ReviewResponse.from(saved);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public void deleteReview(String userEmail, Long reviewId) {
+        User user = findUserByEmail(userEmail);
+        PlantReview review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review", reviewId));
+
+        // Only the original reviewer can delete their review
+        if (!review.getUser().getId().equals(user.getId())) {
+            throw new BusinessException("You can only delete your own reviews.");
+        }
+
+        reviewRepository.delete(review);
+        log.info("Review deleted: id={}", reviewId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Page<ReviewDto.ReviewResponse> getReviewsBySpecies(Long speciesId, Pageable pageable) {
+        return reviewRepository.findBySpeciesId(speciesId, pageable)
+                .map(ReviewDto.ReviewResponse::from);
+    }
+
+    /**
+     * Looks up a user by email or throws 404.
+     *
+     * @param email the user's email
+     * @return the User entity
+     */
+    private User findUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
+    }
+}
