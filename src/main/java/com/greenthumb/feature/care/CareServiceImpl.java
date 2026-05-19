@@ -68,3 +68,58 @@ public class CareServiceImpl implements CareService {
                 .build();
 
         CareSchedule saved = scheduleRepository.save(schedule);
+        log.info("Care schedule created: {} for plant id={}", request.getCareType(), plantId);
+        return CareDto.ScheduleResponse.from(saved);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public CareDto.ScheduleResponse updateSchedule(String userEmail, Long plantId,
+                                                    Long scheduleId,
+                                                    CareDto.ScheduleRequest request) {
+        validatePlantOwnership(userEmail, plantId);
+        CareSchedule schedule = scheduleRepository.findById(scheduleId)
+                .filter(s -> s.getUserPlant().getId().equals(plantId))
+                .orElseThrow(() -> new ResourceNotFoundException("Care schedule", scheduleId));
+
+        schedule.setIntervalDays(request.getIntervalDays());
+        schedule.setNextDueDate(request.getNextDueDate());
+
+        CareSchedule saved = scheduleRepository.save(schedule);
+        log.info("Care schedule updated: id={}", scheduleId);
+        return CareDto.ScheduleResponse.from(saved);
+    }
+
+    /**
+     * {@inheritDoc}
+     * Sets isActive=false rather than deleting the record.
+     */
+    @Override
+    @Transactional
+    public void deleteSchedule(String userEmail, Long plantId, Long scheduleId) {
+        validatePlantOwnership(userEmail, plantId);
+        CareSchedule schedule = scheduleRepository.findById(scheduleId)
+                .filter(s -> s.getUserPlant().getId().equals(plantId))
+                .orElseThrow(() -> new ResourceNotFoundException("Care schedule", scheduleId));
+
+        // Deactivate rather than hard delete to preserve history
+        schedule.setActive(false);
+        scheduleRepository.save(schedule);
+        log.info("Care schedule deactivated: id={}", scheduleId);
+    }
+
+    /**
+     * {@inheritDoc}
+     * Advances the matching schedule's nextDueDate after logging.
+     */
+    @Override
+    @Transactional
+    public CareDto.LogResponse logCare(String userEmail, Long plantId, CareDto.LogRequest request) {
+        UserPlant plant = findOwnedPlant(userEmail, plantId);
+        User user = findUserByEmail(userEmail);
+
+        CareLog careLog = CareLog.builder()
+                .userPlant(plant)
