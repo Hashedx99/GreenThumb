@@ -123,3 +123,71 @@ public class CareServiceImpl implements CareService {
 
         CareLog careLog = CareLog.builder()
                 .userPlant(plant)
+                .performedBy(user)
+                .careType(request.getCareType())
+                .notes(request.getNotes())
+                .build();
+
+        CareLog saved = logRepository.save(careLog);
+
+        // Advance the next due date on the matching active schedule
+        scheduleRepository.findByUserPlantIdAndCareType(plantId, request.getCareType())
+                .filter(CareSchedule::isActive)
+                .ifPresent(schedule -> {
+                    LocalDate next = LocalDate.now().plusDays(schedule.getIntervalDays());
+                    schedule.setNextDueDate(next);
+                    scheduleRepository.save(schedule);
+                    log.debug("Schedule advanced: next due={}", next);
+                });
+
+        log.info("Care logged: {} for plant id={}", request.getCareType(), plantId);
+        return CareDto.LogResponse.from(saved);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<CareDto.LogResponse> getCareHistory(String userEmail, Long plantId) {
+        validatePlantOwnership(userEmail, plantId);
+        return logRepository.findByUserPlantIdOrderByPerformedAtDesc(plantId)
+                .stream()
+                .map(CareDto.LogResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Validates that the given plant exists and belongs to the requesting user.
+     *
+     * @param userEmail the authenticated user's email
+     * @param plantId   the plant ID to check
+     */
+    private void validatePlantOwnership(String userEmail, Long plantId) {
+        findOwnedPlant(userEmail, plantId);
+    }
+
+    /**
+     * Returns the plant if owned by the user, or throws 404.
+     *
+     * @param userEmail the authenticated user's email
+     * @param plantId   the plant ID
+     * @return the UserPlant entity
+     */
+    private UserPlant findOwnedPlant(String userEmail, Long plantId) {
+        User user = findUserByEmail(userEmail);
+        return plantRepository.findByIdAndUserId(plantId, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Plant not found with id: " + plantId));
+    }
+
+    /**
+     * Looks up a user by email or throws 404.
+     *
+     * @param email the user's email
+     * @return the User entity
+     */
+    private User findUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
+    }
+}
