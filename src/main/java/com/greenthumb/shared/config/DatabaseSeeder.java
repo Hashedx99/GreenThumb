@@ -86,8 +86,8 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .build());
 
         userRepository.save(User.builder()
-                .name("Sara Al-Khalifa")
-                .email("sara@greenthumb.com")
+                .name("Jasim Ahmed")
+                .email("jasim@greenthumb.com")
                 .password(passwordEncoder.encode("User@1234"))
                 .role(Role.USER)
                 .status(UserStatus.ACTIVE)
@@ -176,7 +176,7 @@ public class DatabaseSeeder implements CommandLineRunner {
      */
     private void seedPlantsAndSchedules() {
         User hamza = userRepository.findByEmail("hamza@greenthumb.com").orElseThrow();
-        User sara = userRepository.findByEmail("sara@greenthumb.com").orElseThrow();
+        User jasim = userRepository.findByEmail("jasim@greenthumb.com").orElseThrow();
 
         PlantSpecies orchid = speciesRepository.findAll().stream()
                 .filter(s -> s.getCommonName().equals("Phalaenopsis Orchid"))
@@ -199,9 +199,9 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .status(PlantStatus.HEALTHY)
                 .build());
 
-        // Sara's snake plant
-        UserPlant saraSnake = plantRepository.save(UserPlant.builder()
-                .user(sara)
+        // jasim's snake plant
+        UserPlant jasimSnake = plantRepository.save(UserPlant.builder()
+                .user(jasim)
                 .species(snakePlant)
                 .nickname("Snakey")
                 .acquiredDate(LocalDate.now().minusMonths(6))
@@ -210,9 +210,9 @@ public class DatabaseSeeder implements CommandLineRunner {
                 .status(PlantStatus.HEALTHY)
                 .build());
 
-        // Sara's spider plant
-        UserPlant saraSpider = plantRepository.save(UserPlant.builder()
-                .user(sara)
+        // jasim's spider plant
+        UserPlant jasimSpider = plantRepository.save(UserPlant.builder()
+                .user(jasim)
                 .species(spiderPlant)
                 .nickname("Webby")
                 .acquiredDate(LocalDate.now().minusMonths(1))
@@ -230,21 +230,21 @@ public class DatabaseSeeder implements CommandLineRunner {
                         .isActive(true)
                         .build(),
                 CareSchedule.builder()
-                        .userPlant(saraSnake)
+                        .userPlant(jasimSnake)
                         .careType(CareType.WATER)
                         .intervalDays(14)
                         .nextDueDate(LocalDate.now())  // Due today — for demo
                         .isActive(true)
                         .build(),
                 CareSchedule.builder()
-                        .userPlant(saraSpider)
+                        .userPlant(jasimSpider)
                         .careType(CareType.WATER)
                         .intervalDays(7)
                         .nextDueDate(LocalDate.now().minusDays(1))  // Overdue — for demo
                         .isActive(true)
                         .build(),
                 CareSchedule.builder()
-                        .userPlant(saraSpider)
+                        .userPlant(jasimSpider)
                         .careType(CareType.FERTILISE)
                         .intervalDays(30)
                         .nextDueDate(LocalDate.now().plusDays(15))
