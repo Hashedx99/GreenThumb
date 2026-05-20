@@ -16,8 +16,8 @@ Admins manage a global species catalogue and monitor platform-wide activity.
 
 | Layer       | Technology                                     |
 |-------------|------------------------------------------------|
-| Backend     | Java 17, Spring Boot 3.2, Spring Security, JPA |
-| Auth        | JWT (jjwt 0.12.5), BCrypt, Email verification  |
+| Backend     | Java 17, Spring Boot 4, Spring Security, JPA |
+| Auth        | JWT (jjwt 0.13.0), BCrypt, Email verification  |
 | Database    | PostgreSQL (prod), H2 (dev)                    |
 | File Upload | Cloudinary                                     |
 | Email       | Spring Mail + Thymeleaf HTML templates         |
