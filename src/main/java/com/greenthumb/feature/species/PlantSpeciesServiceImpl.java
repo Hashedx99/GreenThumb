@@ -54,18 +54,6 @@ public class PlantSpeciesServiceImpl implements PlantSpeciesService {
         return PlantSpeciesDto.SpeciesResponse.from(species);
     }
 
-
-    /**
-     * Looks up a species by ID or throws a 404 exception.
-     *
-     * @param id the species ID
-     * @return the PlantSpecies entity
-     */
-    private PlantSpecies findSpeciesById(Long id) {
-        return speciesRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Plant species", id));
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -147,4 +135,14 @@ public class PlantSpeciesServiceImpl implements PlantSpeciesService {
         log.info("Species deleted: id={}", id);
     }
 
+    /**
+     * Looks up a species by ID or throws a 404 exception.
+     *
+     * @param id the species ID
+     * @return the PlantSpecies entity
+     */
+    private PlantSpecies findSpeciesById(Long id) {
+        return speciesRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plant species", id));
+    }
 }
