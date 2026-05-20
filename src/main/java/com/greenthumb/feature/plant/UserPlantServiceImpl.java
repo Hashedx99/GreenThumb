@@ -81,17 +81,6 @@ public class UserPlantServiceImpl implements UserPlantService {
     }
 
     /**
-     * Looks up a user by email or throws a 404.
-     *
-     * @param email the user's email
-     * @return the User entity
-     */
-    private User findUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
@@ -176,5 +165,16 @@ public class UserPlantServiceImpl implements UserPlantService {
         return plantRepository.findByIdAndUserId(plantId, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Plant not found with id: " + plantId));
+    }
+
+    /**
+     * Looks up a user by email or throws a 404.
+     *
+     * @param email the user's email
+     * @return the User entity
+     */
+    private User findUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
     }
 }
