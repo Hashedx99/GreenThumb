@@ -1,0 +1,2102 @@
+{
+  "info": {
+    "_postman_id": "04d039b2-79f1-4358-9d15-c0d7ff492792",
+    "name": "GreenThumb API",
+    "description": "Complete API documentation for the GreenThumb houseplant management platform.\n\n## Setup\n1. Import this collection into Postman\n2. Set the `base_url` variable to `http://localhost:8080`\n3. Follow the **Demo Flow** folder in order — it walks through the full user journey from registration to care logging\n\n## Variables\n- `base_url` — Spring Boot server URL (default: http://localhost:8080)\n- `token` — JWT token, set automatically by the Login request\n- `plant_id` — set manually after adding a plant\n- `species_id` — set manually after browsing species\n- `schedule_id` — set manually after creating a schedule\n- `review_id` — set manually after writing a review\n\n## Auth\nAll endpoints except Auth and public GET /api/species require the `Authorization: Bearer {{token}}` header. This is pre-configured on every request in this collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "50802721"
+  },
+  "item": [
+    {
+      "name": "🌱 Demo Flow (Run In Order)",
+      "item": [
+        {
+          "name": "Step 1 — Register a new user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hamza Ali\",\n  \"email\": \"hamza@greenthumb.com\",\n  \"password\": \"SecurePass1!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registers a new user. Returns 201. A verification email is sent.\n\n⚠️ In dev mode (H2), email is sent to Gmail — check your inbox or use the seeded user below to skip verification.\n\n**Seeded users (skip Steps 1-2):**\n- hamza@greenthumb.com / User@1234\n- sara@greenthumb.com / User@1234\n- admin@greenthumb.com / Admin@1234"
+          },
+          "response": []
+        },
+        {
+          "name": "Step 2 — Verify email (copy token from email)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/verify?token=PASTE_TOKEN_FROM_EMAIL_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "PASTE_TOKEN_FROM_EMAIL_HERE"
+                }
+              ]
+            },
+            "description": "Activates the account. Paste the token from the verification email into the query param.\n\nIf using a seeded user, skip this step — seeded accounts are pre-verified."
+          },
+          "response": []
+        },
+        {
+          "name": "Step 3 — Login → auto-saves token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('token', res.data.token);",
+                  "    pm.collectionVariables.set('user_id', res.data.userId);",
+                  "    console.log('✅ Token saved:', res.data.token.substring(0, 30) + '...');",
+                  "    console.log('✅ User ID saved:', res.data.userId);",
+                  "} else {",
+                  "    console.error('❌ Login failed:', JSON.stringify(res));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"hamza@greenthumb.com\",\n  \"password\": \"User@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates the user. The test script automatically saves the JWT token to the `token` collection variable. All subsequent requests will use it.\n\nExpected response:\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"token\": \"eyJ...\",\n    \"userId\": 2,\n    \"name\": \"Hamza Ali\",\n    \"email\": \"hamza@greenthumb.com\",\n    \"role\": \"USER\"\n  }\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Step 4 — Browse species (pick a species ID)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/species?page=0&size=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Lists all species in the catalogue. No auth required.\n\nNote the `id` of a species you want to add — you'll use it in Step 5.\n\nSeeded species IDs (approximate — check actual response):\n- 1: Peace Lily\n- 2: Snake Plant\n- 3: Spider Plant\n- 4: Phalaenopsis Orchid\n- 5: Pothos\n- 6: Aloe Vera"
+          },
+          "response": []
+        },
+        {
+          "name": "Step 5 — Add plant to collection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.id) {",
+                  "    pm.collectionVariables.set('plant_id', res.data.id);",
+                  "    console.log('✅ plant_id saved:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"speciesId\": 4,\n  \"nickname\": \"Orchie\",\n  \"location\": \"Living Room Windowsill\",\n  \"acquiredDate\": \"2025-03-15\",\n  \"notes\": \"Got this as a gift. Blooming beautifully.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants"
+              ]
+            },
+            "description": "Adds a plant to the authenticated user's collection. Change `speciesId` to the ID you noted in Step 4.\n\nThe test script saves the returned `plant_id` automatically."
+          },
+          "response": []
+        },
+        {
+          "name": "Step 6 — Create watering schedule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.id) {",
+                  "    pm.collectionVariables.set('schedule_id', res.data.id);",
+                  "    console.log('✅ schedule_id saved:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"careType\": \"WATER\",\n  \"intervalDays\": 10,\n  \"nextDueDate\": \"2025-05-17\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/schedule",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "schedule"
+              ]
+            },
+            "description": "Creates a recurring watering schedule for the plant.\n\nCare types: `WATER`, `FERTILISE`, `REPOT`, `PRUNE`, `MIST`\n\nSet `nextDueDate` to today or earlier to make it appear in the due-today list."
+          },
+          "response": []
+        },
+        {
+          "name": "Step 7 — Check plants due today",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/due-today",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "due-today"
+              ]
+            },
+            "description": "Returns all plants with a care schedule where `nextDueDate <= today`. This is the dashboard feed.\n\nIf you set `nextDueDate` in the past or as today in Step 6, your plant will appear here."
+          },
+          "response": []
+        },
+        {
+          "name": "Step 8 — Log a care action",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"careType\": \"WATER\",\n  \"notes\": \"Watered thoroughly, soil was very dry.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/care-log",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "care-log"
+              ]
+            },
+            "description": "Records a care action. This also advances the matching schedule's `nextDueDate` forward by `intervalDays`.\n\nAfter logging, re-run Step 7 — the plant will no longer appear in due-today."
+          },
+          "response": []
+        },
+        {
+          "name": "Step 9 — Get care tips from Perenual",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/species/{{species_id}}/tips",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species",
+                "{{species_id}}",
+                "tips"
+              ]
+            },
+            "description": "Fetches watering, sunlight, and toxicity tips from the Perenual API. Results are cached for 7 days — the response includes a `fromCache` flag.\n\nSet `{{species_id}}` to any species ID from Step 4."
+          },
+          "response": []
+        },
+        {
+          "name": "Step 10 — Write a review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.id) {",
+                  "    pm.collectionVariables.set('review_id', res.data.id);",
+                  "    console.log('✅ review_id saved:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"body\": \"Beautiful plant. Thrives in indirect light. Blooms twice a year.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "reviews"
+              ]
+            },
+            "description": "Writes a review for the species linked to this plant. One review per plant per user is enforced.\n\nRating: 1–5 (required). Body: optional, max 1000 characters."
+          },
+          "response": []
+        }
+      ],
+      "description": "Complete end-to-end walkthrough of the GreenThumb API. Run each request in sequence. This is the recommended way to test the API for the first time."
+    },
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hamza Ali\",\n  \"email\": \"hamza@greenthumb.com\",\n  \"password\": \"SecurePass1!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Creates a new user account with PENDING status. Sends a verification email via Gmail SMTP.\n\n**Validation rules:**\n- `name`: 2–100 characters, required\n- `email`: valid format, must be unique\n- `password`: min 8 characters\n\n**Returns:** 201 Created\n\n**Errors:**\n- 400: validation failure\n- 409: email already registered"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Hamza Ali\",\n  \"email\": \"hamza@greenthumb.com\",\n  \"password\": \"SecurePass1!\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/register",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                },
+                "description": "Creates a new user account with PENDING status. Sends a verification email via Gmail SMTP.\n\n**Validation rules:**\n- `name`: 2–100 characters, required\n- `email`: valid format, must be unique\n- `password`: min 8 characters\n\n**Returns:** 201 Created\n\n**Errors:**\n- 400: validation failure\n- 409: email already registered"
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "Text",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Registration successful. Please check your email to verify your account.\",\n  \"timestamp\": \"2025-05-17T10:00:00\"\n}"
+            },
+            {
+              "name": "409 Duplicate Email",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Hamza Ali\",\n  \"email\": \"hamza@greenthumb.com\",\n  \"password\": \"SecurePass1!\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/register",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                },
+                "description": "Creates a new user account with PENDING status. Sends a verification email via Gmail SMTP.\n\n**Validation rules:**\n- `name`: 2–100 characters, required\n- `email`: valid format, must be unique\n- `password`: min 8 characters\n\n**Returns:** 201 Created\n\n**Errors:**\n- 400: validation failure\n- 409: email already registered"
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "Text",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Email is already registered: hamza@greenthumb.com\",\n  \"timestamp\": \"2025-05-17T10:00:00\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Verify Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/verify?token=PASTE_TOKEN_HERE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "PASTE_TOKEN_HERE"
+                }
+              ]
+            },
+            "description": "Activates the user account by consuming the email verification token.\n\nToken is a UUID sent in the verification email link. Expires after 24 hours. Single use.\n\n**Returns:** 200 OK\n\n**Errors:**\n- 400: token invalid / expired / already used"
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('token', res.data.token);",
+                  "    pm.collectionVariables.set('user_id', res.data.userId);",
+                  "    console.log('✅ Token saved to collection variable');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"hamza@greenthumb.com\",\n  \"password\": \"User@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates a user and returns a JWT. The test script saves the token automatically to `{{token}}`.\n\nThe token is valid for 24 hours (86400000ms as configured).\n\n**Pre-conditions:** Account must be email-verified and status ACTIVE.\n\n**Returns:** 200 OK with JWT and user details\n\n**Errors:**\n- 401: wrong credentials\n- 400: email not verified"
+          },
+          "response": [
+            {
+              "name": "200 Success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"hamza@greenthumb.com\",\n  \"password\": \"User@1234\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Authenticates a user and returns a JWT. The test script saves the token automatically to `{{token}}`.\n\nThe token is valid for 24 hours (86400000ms as configured).\n\n**Pre-conditions:** Account must be email-verified and status ACTIVE.\n\n**Returns:** 200 OK with JWT and user details\n\n**Errors:**\n- 401: wrong credentials\n- 400: email not verified"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "Text",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Login successful\",\n  \"data\": {\n    \"token\": \"eyJhbGciOiJIUzI1NiJ9...\",\n    \"userId\": 2,\n    \"name\": \"Hamza Ali\",\n    \"email\": \"hamza@greenthumb.com\",\n    \"role\": \"USER\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('token', res.data.token);",
+                  "    console.log('✅ Admin token saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@greenthumb.com\",\n  \"password\": \"Admin@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login as the seeded admin user. Required before using any /api/admin/* or /api/species POST/PUT/DELETE endpoints.\n\nSaves admin JWT to `{{token}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"hamza@greenthumb.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/forgot-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "description": "Sends a password reset link to the given email. Always returns 200 regardless of whether the email exists — prevents user enumeration.\n\nReset token expires after 1 hour."
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"PASTE_RESET_TOKEN_FROM_EMAIL\",\n  \"newPassword\": \"NewSecurePass1!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/reset-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "reset-password"
+              ]
+            },
+            "description": "Completes the password reset. The token comes from the reset email link. Single use, expires in 1 hour.\n\n**Errors:**\n- 400: token invalid / expired / already used"
+          },
+          "response": []
+        }
+      ],
+      "description": "Public authentication endpoints. No JWT required."
+    },
+    {
+      "name": "👤 User Profile",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "profile"
+              ]
+            },
+            "description": "Returns the authenticated user's full profile.\n\n**Returns:** 200 with id, name, email, role, status, profilePictureUrl, bio, location, createdAt"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hamza Ali\",\n  \"bio\": \"Plant enthusiast with a passion for tropical species\",\n  \"location\": \"Bahrain\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "profile"
+              ]
+            },
+            "description": "Updates name, bio, and location for the authenticated user.\n\n**Validation:** name is required (2–100 chars). bio max 300 chars.\n\n**Returns:** 200 with updated profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Profile Picture",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "value": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/profile/picture",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "profile",
+                "picture"
+              ]
+            },
+            "description": "Uploads a new profile picture. Accepts image files (jpg, png, webp etc.). Uploaded to Cloudinary under `greenthumb/profiles/`.\n\n**Body:** multipart/form-data with key `file`\n\n**Returns:** 200 with updated profile including new `profilePictureUrl`"
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"User@1234\",\n  \"newPassword\": \"NewSecurePass1!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/change-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "change-password"
+              ]
+            },
+            "description": "Changes the authenticated user's password. Verifies the current password before allowing the update.\n\n**Validation:** newPassword min 8 characters.\n\n**Errors:**\n- 400: current password is incorrect"
+          },
+          "response": []
+        }
+      ],
+      "description": "Authenticated user profile management. All endpoints require `Authorization: Bearer {{token}}`."
+    },
+    {
+      "name": "🌿 Species Catalogue",
+      "item": [
+        {
+          "name": "Browse All Species",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/species?page=0&size=10&sort=commonName,asc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "commonName,asc"
+                }
+              ]
+            },
+            "description": "Returns a paginated list of all species. No auth required.\n\n**Query params:**\n- `page`: page number (0-based)\n- `size`: items per page\n- `sort`: field,direction (e.g. `commonName,asc`)\n- `query`: optional search term (searches commonName and scientificName)"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Species",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/species?query=peace&page=0&size=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "peace"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Searches species by common name or scientific name. Case-insensitive partial match.\n\nExamples: `peace`, `snake`, `Spathiphyllum`, `aloe`"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Species by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/species/{{species_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species",
+                "{{species_id}}"
+              ]
+            },
+            "description": "Returns full details of a single species including toxicToCats, wateringFrequencyDays, lightRequirement, and imageUrl.\n\n**Errors:**\n- 404: species not found"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Species Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/species/{{species_id}}/reviews?page=0&size=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species",
+                "{{species_id}}",
+                "reviews"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Returns all user reviews for a given species. Public endpoint.\n\nIncludes rating, body, reviewer name, and timestamp."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Species Care Tips (Perenual)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/species/{{species_id}}/tips",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species",
+                "{{species_id}}",
+                "tips"
+              ]
+            },
+            "description": "Fetches care tips from the Perenual Plant API for the given species. Results are cached locally for 7 days.\n\nResponse includes:\n- `wateringTip`: watering guidance\n- `sunlightTip`: light requirements\n- `toxicityNote`: cat safety warning\n- `fromCache`: true if served from local cache\n\n**Requires:** USER or ADMIN role"
+          },
+          "response": []
+        },
+        {
+          "name": "[ADMIN] Create Species",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"commonName\": \"Monstera Deliciosa\",\n  \"scientificName\": \"Monstera deliciosa\",\n  \"wateringFrequencyDays\": 7,\n  \"lightRequirement\": \"Bright indirect light\",\n  \"toxicToCats\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/species",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species"
+              ]
+            },
+            "description": "Creates a new species in the catalogue. Requires ADMIN role.\n\n**Login as admin first:** use the `Login (Admin)` request.\n\n**Validation:** commonName is required. wateringFrequencyDays must be positive.\n\n**Returns:** 201 Created with species data"
+          },
+          "response": []
+        },
+        {
+          "name": "[ADMIN] Update Species",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"commonName\": \"Monstera Deliciosa\",\n  \"scientificName\": \"Monstera deliciosa\",\n  \"wateringFrequencyDays\": 10,\n  \"lightRequirement\": \"Bright indirect light\",\n  \"toxicToCats\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/species/{{species_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species",
+                "{{species_id}}"
+              ]
+            },
+            "description": "Updates an existing species. Requires ADMIN role.\n\nAll fields in the body are used to replace the current values."
+          },
+          "response": []
+        },
+        {
+          "name": "[ADMIN] Upload Species Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "value": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/species/{{species_id}}/image",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species",
+                "{{species_id}}",
+                "image"
+              ]
+            },
+            "description": "Uploads a reference image for a species. Requires ADMIN role.\n\n**Body:** multipart/form-data with key `file`\n\nImage uploaded to Cloudinary under `greenthumb/species/`"
+          },
+          "response": []
+        },
+        {
+          "name": "[ADMIN] Delete Species",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/species/{{species_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "species",
+                "{{species_id}}"
+              ]
+            },
+            "description": "Hard-deletes a species from the catalogue. Requires ADMIN role.\n\n⚠️ This will fail if users have plants linked to this species (foreign key constraint). Delete user plants first."
+          },
+          "response": []
+        }
+      ],
+      "description": "Plant species catalogue. GET endpoints are public. POST/PUT/DELETE require ADMIN role."
+    },
+    {
+      "name": "🪴 My Plants",
+      "item": [
+        {
+          "name": "Get My Plants",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/my-plants?page=0&size=12&sort=createdAt,desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "12"
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt,desc"
+                }
+              ]
+            },
+            "description": "Returns the authenticated user's plant collection with pagination. Each plant includes embedded species data.\n\nResponse includes: nickname, location, status, photoUrl, acquiredDate, species details."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plants Due Today",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/due-today",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "due-today"
+              ]
+            },
+            "description": "Returns all plants with at least one active care schedule where `nextDueDate <= today`. This powers the dashboard's due-today widget.\n\nReturns a list (not paginated). Plants appear here until care is logged."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plant by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}"
+              ]
+            },
+            "description": "Returns details of a specific plant. Ownership is validated — you can only view your own plants.\n\n**Errors:**\n- 404: plant not found or not owned by you"
+          },
+          "response": []
+        },
+        {
+          "name": "Add Plant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) {",
+                  "    pm.collectionVariables.set('plant_id', res.data.id);",
+                  "    console.log('✅ plant_id saved:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"speciesId\": 4,\n  \"nickname\": \"Orchie\",\n  \"location\": \"Living Room Windowsill\",\n  \"acquiredDate\": \"2025-03-15\",\n  \"notes\": \"Got this as a gift. Blooming beautifully.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants"
+              ]
+            },
+            "description": "Adds a plant to the collection. The `speciesId` must match a species in the catalogue.\n\n**Required:** speciesId, nickname\n**Optional:** location, acquiredDate (YYYY-MM-DD), notes\n\n**Returns:** 201 Created. Test script saves the plant ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Plant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nickname\": \"Orchie (Updated)\",\n  \"location\": \"Bedroom Shelf\",\n  \"notes\": \"Moved to bedroom — better humidity.\",\n  \"status\": \"HEALTHY\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}"
+              ]
+            },
+            "description": "Updates a plant's nickname, location, notes, and health status.\n\n**Status values:** `HEALTHY`, `STRUGGLING`, `DEAD`\n\nOwnership is validated — you can only update your own plants."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Plant Photo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "value": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/photo",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "photo"
+              ]
+            },
+            "description": "Uploads a photo for a specific plant. Uploaded to Cloudinary under `greenthumb/plants/`.\n\n**Body:** multipart/form-data with key `file`\n\nReturns updated plant with new `photoUrl`."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Plant",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}"
+              ]
+            },
+            "description": "Removes a plant from the collection. Cascades to care schedules, care logs, and reviews linked to this plant.\n\nOwnership validated — you can only delete your own plants."
+          },
+          "response": []
+        }
+      ],
+      "description": "User's personal plant collection. All endpoints require authentication."
+    },
+    {
+      "name": "📅 Care Schedules",
+      "item": [
+        {
+          "name": "Get Schedules for Plant",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/schedule",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "schedule"
+              ]
+            },
+            "description": "Returns all care schedules for a plant. Each schedule has a `careType`, `intervalDays`, `nextDueDate`, and `isActive` flag."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Care Schedule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) {",
+                  "    pm.collectionVariables.set('schedule_id', res.data.id);",
+                  "    console.log('✅ schedule_id saved:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"careType\": \"WATER\",\n  \"intervalDays\": 10,\n  \"nextDueDate\": \"2025-05-17\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/schedule",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "schedule"
+              ]
+            },
+            "description": "Creates a recurring schedule for a specific care type.\n\n**Care types:** `WATER`, `FERTILISE`, `REPOT`, `PRUNE`, `MIST`\n\n**Rules:**\n- Only one schedule per care type per plant\n- intervalDays must be positive\n- nextDueDate is required (YYYY-MM-DD)\n\n**Errors:**\n- 400: duplicate care type for this plant\n- 404: plant not found or not owned"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Care Schedule",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"careType\": \"WATER\",\n  \"intervalDays\": 14,\n  \"nextDueDate\": \"2025-05-25\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/schedule/{{schedule_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "schedule",
+                "{{schedule_id}}"
+              ]
+            },
+            "description": "Updates the interval and next due date for an existing schedule. Ownership validated."
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate Schedule",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/schedule/{{schedule_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "schedule",
+                "{{schedule_id}}"
+              ]
+            },
+            "description": "Soft-deactivates a schedule (sets isActive=false). The schedule record is kept for historical reference. Ownership validated."
+          },
+          "response": []
+        }
+      ],
+      "description": "Recurring care schedule management per plant. All endpoints require authentication."
+    },
+    {
+      "name": "📋 Care Logs",
+      "item": [
+        {
+          "name": "Log Care Action",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"careType\": \"WATER\",\n  \"notes\": \"Watered thoroughly. Soil was very dry.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/care-log",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "care-log"
+              ]
+            },
+            "description": "Records a care action for a plant. Two effects:\n1. Creates a CareLog entry with timestamp and notes\n2. Advances the matching active CareSchedule's `nextDueDate` by `intervalDays`\n\n**Care types:** `WATER`, `FERTILISE`, `REPOT`, `PRUNE`, `MIST`\n\nNotes are optional. After logging, the plant will no longer appear in due-today (until the next due date is reached)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Care History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/care-log",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "care-log"
+              ]
+            },
+            "description": "Returns the full care history for a plant, ordered most recent first.\n\nIncludes: careType, performedAt, notes, performedByName."
+          },
+          "response": []
+        }
+      ],
+      "description": "Record and view care actions performed on plants."
+    },
+    {
+      "name": "⭐ Reviews",
+      "item": [
+        {
+          "name": "Write a Review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data) {",
+                  "    pm.collectionVariables.set('review_id', res.data.id);",
+                  "    console.log('✅ review_id saved:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"body\": \"Beautiful plant. Thrives in indirect light and blooms twice a year with minimal effort.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "reviews"
+              ]
+            },
+            "description": "Writes a review for the species linked to this plant.\n\n**Rules:**\n- One review per plant per user (enforced)\n- Rating: 1–5 (required)\n- Body: optional, max 1000 characters\n\n**Errors:**\n- 400: already reviewed this plant\n- 404: plant not found or not owned"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Review",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"body\": \"Still great but needs more consistent watering than I initially thought.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reviews/{{review_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{review_id}}"
+              ]
+            },
+            "description": "Updates your own review. Only the original reviewer can update.\n\n**Errors:**\n- 400: you can only edit your own reviews\n- 404: review not found"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Review",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reviews/{{review_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{review_id}}"
+              ]
+            },
+            "description": "Deletes your own review. Only the original reviewer can delete.\n\n**Errors:**\n- 400: you can only delete your own reviews"
+          },
+          "response": []
+        }
+      ],
+      "description": "Plant species reviews written through a user's personal plant."
+    },
+    {
+      "name": "🛡️ Admin Panel",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users?page=0&size=20&sort=createdAt,desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt,desc"
+                }
+              ]
+            },
+            "description": "Returns a paginated list of all registered users with their role, status, and basic details.\n\n**Requires:** ADMIN role\n\nReturns: id, name, email, role, status, createdAt for each user."
+          },
+          "response": []
+        },
+        {
+          "name": "Soft-Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Sets a user's status to INACTIVE (soft delete). The record is preserved.\n\nThe deactivated user can no longer log in — `isAccountNonLocked()` returns false for INACTIVE status.\n\n**Requires:** ADMIN role\n\n**Errors:**\n- 404: user not found"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Platform Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "stats"
+              ]
+            },
+            "description": "Returns aggregated platform statistics.\n\n**Response includes:**\n- `totalUsers`: total registered accounts\n- `totalPlants`: total plants across all users\n- `careLogsThisWeek`: care actions logged in the last 7 days\n- `topSpecies`: top 5 species by plant count (id, commonName, plantCount)\n- `plantsByStatus`: count breakdown by HEALTHY / STRUGGLING / DEAD\n\n**Requires:** ADMIN role"
+          },
+          "response": [
+            {
+              "name": "200 Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/admin/stats",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "admin",
+                    "stats"
+                  ]
+                },
+                "description": "Returns aggregated platform statistics.\n\n**Response includes:**\n- `totalUsers`: total registered accounts\n- `totalPlants`: total plants across all users\n- `careLogsThisWeek`: care actions logged in the last 7 days\n- `topSpecies`: top 5 species by plant count (id, commonName, plantCount)\n- `plantsByStatus`: count breakdown by HEALTHY / STRUGGLING / DEAD\n\n**Requires:** ADMIN role"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "Text",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Platform stats retrieved\",\n  \"data\": {\n    \"totalUsers\": 4,\n    \"totalPlants\": 3,\n    \"careLogsThisWeek\": 7,\n    \"topSpecies\": [\n      { \"speciesId\": 4, \"commonName\": \"Phalaenopsis Orchid\", \"plantCount\": 2 },\n      { \"speciesId\": 2, \"commonName\": \"Snake Plant\", \"plantCount\": 1 }\n    ],\n    \"plantsByStatus\": {\n      \"HEALTHY\": 2,\n      \"STRUGGLING\": 1,\n      \"DEAD\": 0\n    }\n  }\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Admin-only endpoints. Login as admin first using `Login (Admin)` in the Auth folder."
+    },
+    {
+      "name": "🧪 Testing Flows",
+      "item": [
+        {
+          "name": "Test: Duplicate Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hamza Ali\",\n  \"email\": \"hamza@greenthumb.com\",\n  \"password\": \"SecurePass1!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "**Expected:** 409 Conflict\n\nRegister with an already-used email. Should return:\n```json\n{\n  \"success\": false,\n  \"message\": \"Email is already registered: hamza@greenthumb.com\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Test: Login with wrong password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"hamza@greenthumb.com\",\n  \"password\": \"WrongPassword\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "**Expected:** 401 Unauthorized\n\nAttempts login with incorrect credentials. Should return:\n```json\n{\n  \"success\": false,\n  \"message\": \"Invalid email or password\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Test: Access protected endpoint without token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/my-plants",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants"
+              ]
+            },
+            "description": "**Expected:** 401 Unauthorized\n\nAttempts to access a protected endpoint without a Bearer token."
+          },
+          "response": []
+        },
+        {
+          "name": "Test: User accesses admin endpoint",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "stats"
+              ]
+            },
+            "description": "**Expected:** 403 Forbidden\n\nLogin as a regular USER first (not admin), then run this. Should return:\n```json\n{\n  \"success\": false,\n  \"message\": \"Access denied: insufficient permissions\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Test: Add plant with invalid species ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"speciesId\": 99999,\n  \"nickname\": \"Ghost Plant\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants"
+              ]
+            },
+            "description": "**Expected:** 404 Not Found\n\nAttempts to add a plant linked to a non-existent species ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Test: Duplicate care schedule (same type)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"careType\": \"WATER\",\n  \"intervalDays\": 7,\n  \"nextDueDate\": \"2025-05-20\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/schedule",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "schedule"
+              ]
+            },
+            "description": "**Expected:** 400 Bad Request\n\nRun this after already creating a WATER schedule for the same plant. Should return:\n```json\n{\n  \"success\": false,\n  \"message\": \"A WATER schedule already exists for this plant.\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Test: Double review (same plant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 3,\n  \"body\": \"Trying to review again.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "reviews"
+              ]
+            },
+            "description": "**Expected:** 400 Bad Request\n\nRun after already writing a review for the same plant. Should return:\n```json\n{\n  \"success\": false,\n  \"message\": \"You have already reviewed this plant.\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Test: Review out-of-range rating",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 10,\n  \"body\": \"Off the charts!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/my-plants/{{plant_id}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "my-plants",
+                "{{plant_id}}",
+                "reviews"
+              ]
+            },
+            "description": "**Expected:** 400 Bad Request (validation)\n\nRating must be 1–5. Should return validation error:\n```json\n{\n  \"success\": false,\n  \"message\": \"Validation failed: {rating=Rating must not exceed 5}\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Test: Change password with wrong current",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"WrongPassword\",\n  \"newPassword\": \"NewPass@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/change-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "change-password"
+              ]
+            },
+            "description": "**Expected:** 400 Bad Request\n\nShould return:\n```json\n{\n  \"success\": false,\n  \"message\": \"Current password is incorrect\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Test: Forgot password (always 200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nonexistent@nobody.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/forgot-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "description": "**Expected:** 200 OK (even for unknown email)\n\nPrevents user enumeration. The response is always the same regardless of whether the email exists:\n```json\n{\n  \"success\": true,\n  \"message\": \"If that email is registered, a reset link has been sent.\"\n}\n```"
+          },
+          "response": []
+        }
+      ],
+      "description": "Isolated test scenarios for validating specific API behaviours. Run these to confirm edge cases and error handling."
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "plant_id",
+      "value": "1"
+    },
+    {
+      "key": "species_id",
+      "value": "1"
+    },
+    {
+      "key": "schedule_id",
+      "value": "1"
+    },
+    {
+      "key": "review_id",
+      "value": "1"
+    },
+    {
+      "key": "user_id",
+      "value": "1"
+    }
+  ]
+}
