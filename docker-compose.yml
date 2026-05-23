@@ -1,0 +1,47 @@
+name: greenthumb
+services:
+  db:
+    image: postgres:latest
+    container_name: greenthumb-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-greenthumb}
+      POSTGRES_USER: ${DB_USERNAME:-greenthumb}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-greenthumb}
+    volumes:
+      - greenthumb-db-data:/data/postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - greenthumb-network
+
+  app:
+    build: .
+    restart: always
+    container_name: greenthumb-api
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-greenthumb}
+      DB_USERNAME: ${DB_USERNAME:-greenthumb}
+      DB_PASSWORD: ${DB_PASSWORD:-greenthumb}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      JWT_SECRET: ${JWT_SECRET_KEY:-your_jwt_secret_key}
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    networks:
+      - greenthumb-network
+
+networks:
+  greenthumb-network:
+    driver: bridge
+
+volumes:
+  greenthumb-db-data:
