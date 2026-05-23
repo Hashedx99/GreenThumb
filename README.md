@@ -98,13 +98,9 @@ docker compose up --build
 
 ## ERD
 
-> [Link to ERD on Eraser.io](#)
+> [ERD](https://app.eraser.io/workspace/sYmXWTWngfI5OEs0UvGb?origin=share&diagram=C0mqwseHibVfc9D2t11lS)
 
 ---
-
-## User Stories
-
-> [Link to Jira Board](#)
 
 
 ## Installation
