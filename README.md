@@ -82,6 +82,20 @@ served from cache for 7 days before re-fetching, preventing unnecessary external
 
 ---
 
+## Docker (Prod)
+
+Use the production profile with PostgreSQL via Docker Compose.
+
+```bash
+# Copy environment variables
+cp .env.example .env
+
+# Start the API + database (prod profile)
+docker compose up --build
+```
+
+---
+
 ## ERD
 
 > [Link to ERD on Eraser.io](#)
@@ -131,5 +145,3 @@ On first startup (dev profile), the app seeds:
 
 - Perenual's free tier returns limited species results for some scientific names — the service falls back gracefully to
   default tips rather than failing the request.
-
----
